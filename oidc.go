@@ -107,11 +107,27 @@ var supportedAlgorithms = map[string]bool{
 	PS512: true,
 }
 
+type npOptions struct {
+	withIssuerCheck bool
+}
+
+type npOption func(*npOptions)
+
+func WithIssuerCheck(check bool) func(*npOptions) {
+	return func (o *npOptions) {
+		o.withIssuerCheck = check
+	}
+}
+
 // NewProvider uses the OpenID Connect discovery mechanism to construct a Provider.
 //
 // The issuer is the URL identifier for the service. For example: "https://accounts.google.com"
 // or "https://login.salesforce.com".
-func NewProvider(ctx context.Context, issuer string) (*Provider, error) {
+func NewProvider(ctx context.Context, issuer string, opts ...npOption) (*Provider, error) {
+	o := npOptions{	}
+	for _, opt := range opts {
+		opt(&o)
+	}
 	wellKnown := strings.TrimSuffix(issuer, "/") + "/.well-known/openid-configuration"
 	req, err := http.NewRequest("GET", wellKnown, nil)
 	if err != nil {
@@ -134,7 +150,7 @@ func NewProvider(ctx context.Context, issuer string) (*Provider, error) {
 
 	var p providerJSON
 	err = unmarshalResp(resp, body, &p)
-	if err != nil {
+	if o.withIssuerCheck && err != nil {
 		return nil, fmt.Errorf("oidc: failed to decode provider discovery object: %v", err)
 	}
 
