@@ -114,7 +114,7 @@ type npOptions struct {
 type npOption func(*npOptions)
 
 func WithIssuerCheck(check bool) func(*npOptions) {
-	return func (o *npOptions) {
+	return func(o *npOptions) {
 		o.withIssuerCheck = check
 	}
 }
@@ -124,7 +124,9 @@ func WithIssuerCheck(check bool) func(*npOptions) {
 // The issuer is the URL identifier for the service. For example: "https://accounts.google.com"
 // or "https://login.salesforce.com".
 func NewProvider(ctx context.Context, issuer string, opts ...npOption) (*Provider, error) {
-	o := npOptions{	}
+	o := npOptions{
+		withIssuerCheck: true,
+	}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -150,13 +152,15 @@ func NewProvider(ctx context.Context, issuer string, opts ...npOption) (*Provide
 
 	var p providerJSON
 	err = unmarshalResp(resp, body, &p)
-	if o.withIssuerCheck && err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("oidc: failed to decode provider discovery object: %v", err)
 	}
 
-	if p.Issuer != issuer {
+	
+	if o.withIssuerCheck && p.Issuer != issuer {
 		return nil, fmt.Errorf("oidc: issuer did not match the issuer returned by provider, expected %q got %q", issuer, p.Issuer)
 	}
+
 	var algs []string
 	for _, a := range p.Algorithms {
 		if supportedAlgorithms[a] {
